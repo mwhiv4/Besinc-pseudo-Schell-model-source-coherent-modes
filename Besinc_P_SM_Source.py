@@ -1,6 +1,6 @@
 import numpy as np 
 import matplotlib.pyplot as plt
-from scipy.special import j1
+from scipy.special import j1,jn_zeros
 from scipy.linalg import eig,inv
 from scipy.interpolate import PchipInterpolator
 
@@ -20,7 +20,7 @@ I0 = 1
 w0 = 0.6e-3
 dc = w0/4
 m = 1
-zeta = 1
+zeta = jn_zeros(1,1)
 # --------------------------------------------- #
 
 # ----- CSD ----- #
@@ -36,6 +36,7 @@ F = I0*(2*r1*r2/w0**2)**m*np.exp(-(r1**2+r2**2)/w0**2) \
 LAM,Y = eig(r2*F,right=True);
 LAM = np.diag(np.real(inv(Y)@F@Y)) 
 CohModes_pchip = PchipInterpolator(r1[:,1],np.real(Y),axis=0)
+Starikov_criterion = np.ceil(np.sum(LAM)**2/np.sum(LAM**2)).astype('int')
 # --------------- #
 
 # ----- Grid ----- #
@@ -46,16 +47,18 @@ rho = np.sqrt(x**2+y**2)
 CohModes2D = CohModes_pchip(rho)
 # ---------------- #
 
+# ----- Coherent Modes ----- #
 Wsim = np.zeros(np.shape(rho))
 Ssim = np.zeros(np.shape(rho))
 mm = 0
-while np.abs(LAM[mm])/np.max(LAM) > 1e-3:
+while np.abs(LAM[mm])/np.max(LAM) > 1e-3: 
     U = np.sqrt(LAM[mm])*CohModes2D[:,:,mm]
     Wsim = Wsim+np.outer(U[int(M/2),:],np.conj(U[int(M/2),:]))
     Ssim = Ssim+np.abs(U)**2
     mm = mm+1
 Wthy = Besinc_P_SM_S_CSD(I0,w0,dc,m,zeta,x,0,y,0)
 Sthy = Besinc_P_SM_S_CSD(I0,w0,dc,m,zeta,x,y,x,y)
+# -------------------------- #
 
 plt.rcParams['text.usetex'] = True
 plt.rcParams['font.family'] = 'serif'
@@ -73,8 +76,6 @@ plt.grid()
 plt.savefig('eig.pdf',bbox_inches='tight')
 plt.show()
 
-
-
 fig,axs = plt.subplots(nrows=2,ncols=3,layout='compressed',figsize=(7.5,5))
 
 p=axs[0,0].imshow(Sthy,extent=[x[0,0]*1e3,x[0,-1]*1e3,y[0,0]*1e3,y[-1,0]*1e3])
@@ -84,18 +85,13 @@ axs[0,0].set_xlim([-1.5,1.5])
 axs[0,0].set_ylim([-1.5,1.5])
 plt.colorbar(p,ax=axs[0,0])
 axs[0,0].set_title(r'$S^{\mathrm{thy}}$')
-#axs[0,0].text(-1.3,1.1,r'$S^{\mathrm{thy}}$',fontsize=10, \
-#    backgroundcolor='w',bbox=dict(facecolor='w', edgecolor='k'))
 
 p=axs[0,1].imshow(Ssim,extent=[x[0,0]*1e3,x[0,-1]*1e3,y[0,0]*1e3,y[-1,0]*1e3])
 axs[0,1].set_xlabel(r'$x$ (mm)')
-#axs[0,1].set_ylabel(r'$y$ (mm)')
 axs[0,1].set_xlim([-1.5,1.5])
 axs[0,1].set_ylim([-1.5,1.5])
 plt.colorbar(p,ax=axs[0,1])
 axs[0,1].set_title(r'$S^{\mathrm{sim}}$')
-#axs[0,1].text(-1.3,1.1,r'$S^{\mathrm{sim}}$',fontsize=10, \
-#    backgroundcolor='w',bbox=dict(facecolor='w', edgecolor='k'))
 
 axs[0,2].plot(x[0,:]*1e3,Sthy[int(M/2),:],'k',label='Theory')
 axs[0,2].plot(x[0,:]*1e3,Ssim[int(M/2),:],'--r',label='{} Modes'.format(mm))
@@ -113,28 +109,21 @@ axs[1,0].set_xlim([-1.5,1.5])
 axs[1,0].set_ylim([-1.5,1.5])
 axs[1,0].set_title(r'$W^{\mathrm{thy}}\left(x_1,0,x_2,0\right)$')
 plt.colorbar(p,ax=axs[1,0])
-#axs[1,0].text(-1.3,1.1,r'$W^{\mathrm{thy}}\left(x_1,0,x_2,0\right)$',fontsize=10, \
-#    backgroundcolor='w',bbox=dict(facecolor='w', edgecolor='k'))
 
 p=axs[1,1].imshow(Wsim,extent=[x[0,0]*1e3,x[0,-1]*1e3,y[0,0]*1e3,y[-1,0]*1e3])
 axs[1,1].set_xlabel(r'$x_1$ (mm)')
-#axs[1,1].set_ylabel(r'$x_2$ (mm)')
 axs[1,1].set_xlim([-1.5,1.5])
 axs[1,1].set_ylim([-1.5,1.5])
 plt.colorbar(p,ax=axs[1,1])
 axs[1,1].set_title(r'$W^{\mathrm{sim}}\left(x_1,0,x_2,0\right)$')
-#axs[1,1].text(-1.3,1.1,r'$W^{\mathrm{sim}}\left(x_1,0,x_2,0\right)$',fontsize=10, \
-#    backgroundcolor='w',bbox=dict(facecolor='w', edgecolor='k'))
 
 inds = (x==-y)
 axs[1,2].plot(x[inds]*1e3,Wthy[inds],'k',label='Theory')
 axs[1,2].plot(x[inds]*1e3,Wsim[inds],'--r',label='{} Modes'.format(mm-1))
 axs[1,2].set_xlabel(r'$x_1$ (mm)')
-axs[1,2].set_ylabel(r'$W\left(x_1,0,-x_2,0\right)$')
+axs[1,2].set_ylabel(r'$W\left(x_1,0,-x_1,0\right)$')
 axs[1,2].grid()
 axs[1,2].set_xlim([-1.5,1.5])
 
 fig.savefig('Besinc.pdf',bbox_inches='tight')
 plt.show()
-
-
